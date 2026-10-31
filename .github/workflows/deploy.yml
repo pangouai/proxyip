@@ -1,14 +1,14 @@
-name: 部署出口节点
+name: deploy
 
 on:
   workflow_dispatch:
     inputs:
       metro:
-        description: "区域（sin=新加坡, fra=法兰克福, sfo, was, dal）"
+        description: "region (sin / fra / sfo / was / dal)"
         required: false
         default: "sin"
       action:
-        description: "操作"
+        description: "action"
         required: true
         default: "deploy"
         type: choice
@@ -23,58 +23,74 @@ permissions:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
+    env:
+      UKC_ORG: pangouai
+      UKC_NAME: relay
     steps:
       - uses: actions/checkout@v4
 
-      - name: 安装 Unikraft CLI
+      - name: install cli
         run: |
           set -euo pipefail
+          VER=v0.6.2
           curl -sSL -o cli.tar.gz \
-            "https://github.com/unikraft-cloud/cli/releases/download/v0.6.2/unikraft-cli_0.6.2_linux_amd64.tar.gz"
+            "https://github.com/unikraft-cloud/cli/releases/download/${VER}/unikraft-cli_0.6.2_linux_amd64.tar.gz"
           tar -xzf cli.tar.gz
           chmod +x unikraft
           sudo mv unikraft /usr/local/bin/unikraft
           unikraft version
 
-      - name: 登录
+      - name: login
         env:
-          UKC_TOKEN: ${{ secrets.UNIKRAFT_TOKEN }}
+          UKC_TOKEN: ${{ secrets.UKC_TOKEN }}
         run: |
           set -euo pipefail
           printf '%s' "$UKC_TOKEN" | unikraft login --token - --no-browser
+          unikraft images list || true
 
-      - name: 状态
+      - name: status
         if: inputs.action == 'status'
         run: |
           unikraft instances list --metro "${{ inputs.metro }}"
           unikraft services list --metro "${{ inputs.metro }}"
+          unikraft images list
 
-      - name: 销毁
+      - name: destroy
         if: inputs.action == 'destroy'
         run: |
-          unikraft instances delete proxyip --metro "${{ inputs.metro }}" -f || true
-          unikraft services delete proxyip --metro "${{ inputs.metro }}" -f || true
+          unikraft instances delete "$UKC_NAME" --metro "${{ inputs.metro }}" -f || true
+          unikraft services delete "$UKC_NAME" --metro "${{ inputs.metro }}" -f || true
 
-      - name: 构建镜像
+      - name: build
         if: inputs.action == 'deploy'
         run: |
-          unikraft build ./app --output "pangouai/proxyip:latest" --arch x86_64
+          set -euo pipefail
+          unikraft build ./app --arch x86_64 --output ./out.tar
+          ls -lh out.tar
 
-      - name: 部署
+      - name: push image
         if: inputs.action == 'deploy'
         run: |
+          set -euo pipefail
+          unikraft images copy ./out.tar "unikraft.io/${UKC_ORG}/${UKC_NAME}:latest"
+          unikraft images list | head -20
+
+      - name: deploy
+        if: inputs.action == 'deploy'
+        run: |
+          set -euo pipefail
           unikraft run \
             --metro "${{ inputs.metro }}" \
-            --name proxyip \
-            --image "pangouai/proxyip:latest" \
-            -m 128MiB --vcpus 1 \
+            --name "$UKC_NAME" \
+            --image "${UKC_ORG}/${UKC_NAME}:latest" \
+            -m 128MiB \
+            --vcpus 1 \
             -p 8443:8443/tls \
-            --scale-to-zero policy=off \
             --restart always \
             -e PORT=8443
 
-      - name: 输出
+      - name: output
         if: inputs.action == 'deploy'
         run: |
           unikraft instances list --metro "${{ inputs.metro }}"
