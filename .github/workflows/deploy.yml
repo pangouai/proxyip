@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      UKC_ORG: pangouai
+      UKC_ORG: longke233
       UKC_NAME: relay
     steps:
       - uses: actions/checkout@v4
@@ -47,14 +47,15 @@ jobs:
         run: |
           set -euo pipefail
           printf '%s' "$UKC_TOKEN" | unikraft login --token - --no-browser
-          unikraft images list || true
+          echo "org check:"
+          unikraft images list 2>&1 | head -20 || true
 
       - name: status
         if: inputs.action == 'status'
         run: |
-          unikraft instances list --metro "${{ inputs.metro }}"
-          unikraft services list --metro "${{ inputs.metro }}"
-          unikraft images list
+          unikraft instances list --metro "${{ inputs.metro }}" || true
+          unikraft services list --metro "${{ inputs.metro }}" || true
+          unikraft images list || true
 
       - name: destroy
         if: inputs.action == 'destroy'
@@ -84,11 +85,14 @@ jobs:
             --metro "${{ inputs.metro }}" \
             --name "$UKC_NAME" \
             --image "${UKC_ORG}/${UKC_NAME}:latest" \
-            -m 128MiB \
+            -m 256MiB \
             --vcpus 1 \
             -p 8443:8443/tls \
+            -p 443:8080/http+tls \
             --restart always \
-            -e PORT=8443
+            -e PORT=8443 \
+            -e HTTP_PORT=8080 \
+            -e SITE_DIR=/app/site
 
       - name: output
         if: inputs.action == 'deploy'
