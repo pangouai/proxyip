@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>轻量级边缘计算平台</title>
+<meta name="description" content="面向开发者的边缘计算运行时，毫秒级冷启动，按需计费。">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0a0e17;--panel:#111827;--line:#1f2937;--txt:#e5e7eb;--dim:#9ca3af;--accent:#3b82f6;--accent2:#10b981}
+body{background:var(--bg);color:var(--txt);font:15px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+header{border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(10,14,23,.85);backdrop-filter:blur(12px);z-index:10}
+nav{display:flex;align-items:center;justify-content:space-between;height:64px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;letter-spacing:.3px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--accent2);box-shadow:0 0 12px var(--accent2)}
+nav ul{display:flex;gap:28px;list-style:none;font-size:14px}
+nav a{color:var(--dim);text-decoration:none;transition:color .2s}
+nav a:hover{color:var(--txt)}
+.hero{padding:88px 0 72px;text-align:center}
+.hero h1{font-size:44px;line-height:1.25;font-weight:800;letter-spacing:-.5px;margin-bottom:20px}
+.hero h1 em{font-style:normal;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hero p{color:var(--dim);font-size:17px;max-width:620px;margin:0 auto 36px}
+.btns{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+.btn{padding:11px 26px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;transition:.2s;border:1px solid transparent}
+.btn-p{background:var(--accent);color:#fff}
+.btn-p:hover{background:#2563eb}
+.btn-s{border-color:var(--line);color:var(--txt)}
+.btn-s:hover{border-color:var(--accent);color:var(--accent)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;padding:20px 0 72px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:26px;transition:.2s}
+.card:hover{border-color:#374151;transform:translateY(-2px)}
+.card h3{font-size:16px;margin-bottom:10px;display:flex;align-items:center;gap:9px}
+.card h3 span{font-size:19px}
+.card p{color:var(--dim);font-size:14px;line-height:1.65}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:72px}
+.stat{background:var(--panel);padding:28px 20px;text-align:center}
+.stat b{display:block;font-size:28px;font-weight:800;color:var(--accent);margin-bottom:6px}
+.stat span{font-size:13px;color:var(--dim)}
+footer{border-top:1px solid var(--line);padding:32px 0;color:var(--dim);font-size:13px;text-align:center}
+footer p+p{margin-top:8px}
+@media(max-width:640px){.hero h1{font-size:30px}nav ul{display:none}.hero{padding:56px 0 48px}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <nav>
+      <div class="logo"><span class="dot"></span>Edge Runtime</div>
+      <ul>
+        <li><a href="#">产品</a></li>
+        <li><a href="#">文档</a></li>
+        <li><a href="#">定价</a></li>
+        <li><a href="#">博客</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="wrap">
+      <h1>毫秒级冷启动的<br><em>边缘计算运行时</em></h1>
+      <p>面向现代应用的轻量虚拟化平台。亚毫秒级调度、按需伸缩、闲置零成本，让计算真正贴近用户。</p>
+      <div class="btns">
+        <a href="#" class="btn btn-p">开始使用</a>
+        <a href="#" class="btn btn-s">阅读文档</a>
+      </div>
+    </div>
+  </section>
+
+  <div class="wrap">
+    <div class="stats">
+      <div class="stat"><b>&lt;10ms</b><span>冷启动延迟</span></div>
+      <div class="stat"><b>5</b><span>可用区域</span></div>
+      <div class="stat"><b>99.95%</b><span>服务可用性</span></div>
+      <div class="stat"><b>0</b><span>闲置计费</span></div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h3><span>⚡</span>极速启动</h3>
+        <p>基于 unikernel 架构，跳过传统容器初始化流程，实例在十毫秒内进入可服务状态。</p>
+      </div>
+      <div class="card">
+        <h3><span>📦</span>标准镜像</h3>
+        <p>兼容 OCI 镜像规范，现有 Dockerfile 可直接构建部署，无需改造现有工作流。</p>
+      </div>
+      <div class="card">
+        <h3><span>📉</span>按需伸缩</h3>
+        <p>无流量时自动归零，请求到达时立即拉起。只为实际消耗的计算资源付费。</p>
+      </div>
+      <div class="card">
+        <h3><span>🌐</span>全球调度</h3>
+        <p>多区域部署，请求自动路由至最近节点。支持自定义域名与自动证书签发。</p>
+      </div>
+      <div class="card">
+        <h3><span>🔒</span>强隔离</h3>
+        <p>每个实例运行在独立虚拟机边界内，硬件级隔离，不共享内核与运行时。</p>
+      </div>
+      <div class="card">
+        <h3><span>🛠️</span>开放接口</h3>
+        <p>提供 REST API 与命令行工具，可接入现有 CI/CD 流程，支持基础设施即代码。</p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>© 2026 Edge Runtime — 轻量级边缘计算平台</p>
+    <p>本站内容仅供技术交流与学习参考</p>
+  </div>
+</footer>
+
+</body>
+</html>
