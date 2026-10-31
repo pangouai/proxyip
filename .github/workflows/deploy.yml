@@ -47,21 +47,18 @@ jobs:
         run: |
           set -euo pipefail
           printf '%s' "$UKC_TOKEN" | unikraft login --token - --no-browser
-          echo "org check:"
-          unikraft images list 2>&1 | head -20 || true
 
       - name: status
         if: inputs.action == 'status'
         run: |
-          unikraft instances list --metro "${{ inputs.metro }}" || true
-          unikraft services list --metro "${{ inputs.metro }}" || true
-          unikraft images list || true
+          unikraft instances list || true
+          unikraft services list || true
 
       - name: destroy
         if: inputs.action == 'destroy'
         run: |
-          unikraft instances delete "$UKC_NAME" --metro "${{ inputs.metro }}" -f || true
-          unikraft services delete "$UKC_NAME" --metro "${{ inputs.metro }}" -f || true
+          unikraft instances delete "$UKC_NAME" -f || true
+          unikraft services delete "$UKC_NAME" -f || true
 
       - name: build
         if: inputs.action == 'deploy'
@@ -75,7 +72,6 @@ jobs:
         run: |
           set -euo pipefail
           unikraft images copy ./out.tar "unikraft.io/${UKC_ORG}/${UKC_NAME}:latest"
-          unikraft images list | head -20
 
       - name: deploy
         if: inputs.action == 'deploy'
@@ -97,5 +93,8 @@ jobs:
       - name: output
         if: inputs.action == 'deploy'
         run: |
-          unikraft instances list --metro "${{ inputs.metro }}"
-          unikraft services list --metro "${{ inputs.metro }}"
+          echo "=== instances ==="
+          unikraft instances list
+          echo ""
+          echo "=== services ==="
+          unikraft services list
