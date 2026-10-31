@@ -1,0 +1,81 @@
+name: 部署出口节点
+
+on:
+  workflow_dispatch:
+    inputs:
+      metro:
+        description: "区域（sin=新加坡, fra=法兰克福, sfo, was, dal）"
+        required: false
+        default: "sin"
+      action:
+        description: "操作"
+        required: true
+        default: "deploy"
+        type: choice
+        options:
+          - deploy
+          - destroy
+          - status
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 Unikraft CLI
+        run: |
+          set -euo pipefail
+          curl -sSL -o cli.tar.gz \
+            "https://github.com/unikraft-cloud/cli/releases/download/v0.6.2/unikraft-cli_0.6.2_linux_amd64.tar.gz"
+          tar -xzf cli.tar.gz
+          chmod +x unikraft
+          sudo mv unikraft /usr/local/bin/unikraft
+          unikraft version
+
+      - name: 登录
+        env:
+          UKC_TOKEN: ${{ secrets.UNIKRAFT_TOKEN }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$UKC_TOKEN" | unikraft login --token - --no-browser
+
+      - name: 状态
+        if: inputs.action == 'status'
+        run: |
+          unikraft instances list --metro "${{ inputs.metro }}"
+          unikraft services list --metro "${{ inputs.metro }}"
+
+      - name: 销毁
+        if: inputs.action == 'destroy'
+        run: |
+          unikraft instances delete proxyip --metro "${{ inputs.metro }}" -f || true
+          unikraft services delete proxyip --metro "${{ inputs.metro }}" -f || true
+
+      - name: 构建镜像
+        if: inputs.action == 'deploy'
+        run: |
+          unikraft build ./app --output "pangouai/proxyip:latest" --arch x86_64
+
+      - name: 部署
+        if: inputs.action == 'deploy'
+        run: |
+          unikraft run \
+            --metro "${{ inputs.metro }}" \
+            --name proxyip \
+            --image "pangouai/proxyip:latest" \
+            -m 128MiB --vcpus 1 \
+            -p 8443:8443/tls \
+            --scale-to-zero policy=off \
+            --restart always \
+            -e PORT=8443
+
+      - name: 输出
+        if: inputs.action == 'deploy'
+        run: |
+          unikraft instances list --metro "${{ inputs.metro }}"
+          unikraft services list --metro "${{ inputs.metro }}"
