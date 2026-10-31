@@ -1,21 +1,31 @@
 #!/usr/bin/env node
-// relay.js — TCP 转发工具
+// relay.js — TCP 转发工具 + 内置静态站点
 //
-// 客户端连上后发送  <host>:<port>\r\n
-// 服务端回 OK\r\n，之后进入纯字节流双向转发
-// 同时兼容 SOCKS5（首字节 0x05 自动识别）
+// 一个进程同时做两件事：
+//   1. 8443 端口：TCP 转发（给 Cloudflare Workers 用）
+//   2. 8080 端口：HTTP 静态站点（伪装页，防止裸端口被扫）
 //
 // 环境变量：
-//   PORT  监听端口（默认 8443）
+//   PORT       转发端口（默认 8443）
+//   HTTP_PORT  站点端口（默认 8080）
+//   SITE_DIR   站点目录（默认 /app/site）
 
 'use strict';
 
 const net = require('node:net');
+const http = require('node:http');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const PORT = parseInt(process.env.PORT || '8443', 10);
-const HOST = '0.0.0.0';
+const HTTP_PORT = parseInt(process.env.HTTP_PORT || '8080', 10);
+const SITE_DIR = process.env.SITE_DIR || path.join(__dirname, 'site');
 
 const log = (...a) => console.log(new Date().toISOString(), ...a);
+
+// ═══════════════════════════════════════════
+// 1. TCP 转发
+// ═══════════════════════════════════════════
 
 const server = net.createServer((client) => {
   client.setNoDelay(true);
@@ -49,7 +59,6 @@ const server = net.createServer((client) => {
 
     buf = Buffer.concat([buf, chunk]);
 
-    // SOCKS5
     if (buf.length >= 1 && buf[0] === 0x05) {
       handshook = true;
       handleSocks5(client, buf, (sock) => {
@@ -61,7 +70,6 @@ const server = net.createServer((client) => {
       return;
     }
 
-    // 文本协议
     const nl = buf.indexOf(0x0a);
     if (nl < 0) {
       if (buf.length > 512) fail('header too long');
@@ -170,14 +178,99 @@ function handleSocks5(client, initial, onReady) {
   pump();
 }
 
-server.listen(PORT, HOST, () => {
-  log(`relay listening on ${HOST}:${PORT}`);
+// ═══════════════════════════════════════════
+// 2. 静态站点（伪装页）
+// ═══════════════════════════════════════════
+
+const MIME = {
+  '.html': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.ico': 'image/x-icon',
+  '.txt': 'text/plain; charset=utf-8',
+  '.woff2': 'font/woff2',
+};
+
+function safeJoin(root, reqPath) {
+  const clean = decodeURIComponent(reqPath.split('?')[0].split('#')[0]);
+  const target = path.normalize(path.join(root, clean));
+  if (!target.startsWith(path.normalize(root))) return null;
+  return target;
+}
+
+const web = http.createServer((req, res) => {
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    res.writeHead(405, { 'Content-Type': 'text/plain' });
+    res.end('Method Not Allowed');
+    return;
+  }
+
+  let filePath = safeJoin(SITE_DIR, req.url === '/' ? '/index.html' : req.url);
+
+  if (!filePath) {
+    res.writeHead(400, { 'Content-Type': 'text/plain' });
+    res.end('Bad Request');
+    return;
+  }
+
+  fs.stat(filePath, (err, st) => {
+    if (err || !st.isFile()) {
+      // 单页应用回退
+      filePath = path.join(SITE_DIR, 'index.html');
+      fs.stat(filePath, (e2, st2) => {
+        if (e2 || !st2.isFile()) {
+          res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+          res.end('Not Found');
+          return;
+        }
+        sendFile(filePath, res);
+      });
+      return;
+    }
+    sendFile(filePath, res);
+  });
+});
+
+function sendFile(filePath, res) {
+  const ext = path.extname(filePath).toLowerCase();
+  const type = MIME[ext] || 'application/octet-stream';
+  fs.readFile(filePath, (err, data) => {
+    if (err) {
+      res.writeHead(500, { 'Content-Type': 'text/plain' });
+      res.end('Internal Server Error');
+      return;
+    }
+    res.writeHead(200, {
+      'Content-Type': type,
+      'Content-Length': data.length,
+      'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=86400',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    res.end(data);
+  });
+}
+
+// ═══════════════════════════════════════════
+// 启动
+// ═══════════════════════════════════════════
+
+server.listen(PORT, '0.0.0.0', () => {
+  log(`relay listening on 0.0.0.0:${PORT}`);
+});
+
+web.listen(HTTP_PORT, '0.0.0.0', () => {
+  log(`site listening on 0.0.0.0:${HTTP_PORT}`);
 });
 
 for (const sig of ['SIGTERM', 'SIGINT']) {
   process.on(sig, () => {
     log(sig);
-    server.close(() => process.exit(0));
+    server.close();
+    web.close();
     setTimeout(() => process.exit(0), 3000);
   });
 }
